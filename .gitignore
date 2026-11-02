@@ -1,0 +1,23 @@
+# Personal editor state
+.obsidian/
+.idea/
+.vscode/
+
+# Local Codex data and runtime output
+.codex/
+*.jsonl
+*.sqlite
+*.sqlite-*
+*.log
+
+# Dependencies, generated output and local packages
+node_modules/
+coverage/
+dist/
+*.zip
+*.exe
+
+# Operating system files
+.DS_Store
+Thumbs.db
+Desktop.ini
