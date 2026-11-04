@@ -1,5 +1,16 @@
 # Changelog / 更新记录
 
+## v0.1.1 — 2026-11-04
+
+License-only release. / 仅变更许可及相关文档。
+
+- Replaced the project-specific no-paid-redistribution license with the standard MIT License.
+- Commercial use, modification, redistribution, sublicensing and selling copies are permitted under MIT.
+- Updated the bilingual README, repository description and release information.
+- Runtime behavior is unchanged. The v0.1.0 tag and source archives retain their original license text.
+
+改为标准 MIT 许可证，移除禁止收费销售、收费分发及另行书面授权的附加限制。程序运行逻辑未变更；v0.1.0 历史标签和源码归档保留原有许可文本。
+
 ## v0.1.0 — 2026-11-03
 
 Initial public source release. / 首个公开源码版本。

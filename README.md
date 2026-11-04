@@ -2,7 +2,7 @@
 
 [English](README.md) · [简体中文](README.zh-CN.md)
 
-**Version: v0.1.0** · [Changelog](CHANGELOG.md) · [License](LICENSE)
+**Version: v0.1.1** · [Changelog](CHANGELOG.md) · [MIT License](LICENSE)
 
 **See what Codex has recorded while you wait for a response.**
 
@@ -166,13 +166,6 @@ Report bugs through [GitHub Issues](https://github.com/ClencyX/codex-runtime-mon
 
 This is an independent community project and is not an official OpenAI product. The current distribution is source-based; no packaged installer is included.
 
-This project is **source-available under a project-specific, MIT-based license that prohibits paid redistribution**. It is not licensed under standard MIT and is not described as OSI-approved open-source software. See [LICENSE](LICENSE) for the full terms.
+This project is open-source software released under the **standard MIT License**. Commercial use, modification, redistribution, sublicensing and selling copies are permitted, provided that the copyright notice and license notice are retained as required by the license. No additional restriction on paid redistribution is imposed. See [LICENSE](LICENSE) for the full terms.
 
-| Use | Permission |
-| --- | --- |
-| Personal use, company-internal use, use in commercial projects | Allowed |
-| Modification and free redistribution, retaining the copyright notice and full license | Allowed |
-| Selling the software or modified/repackaged versions, including paid downloads | Requires the copyright holder's separate written permission |
-| Independent support or consulting, with no fee required to receive the software | Allowed |
-
-The restriction concerns charging recipients for copies of this software or modified versions. Commercial use itself is allowed. The full license governs; this table is a summary.
+The MIT license applies starting with v0.1.1. The existing v0.1.0 tag and source archives retain their original license text; use v0.1.1 or later for the MIT-licensed release.
