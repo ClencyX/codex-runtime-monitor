@@ -4,6 +4,7 @@
  const valid=value=>value==='en'||value==='zh-CN'?value:'zh-CN';
  try{language=valid(root.localStorage?.getItem(key));}catch{}
  const en={
+  '本轮5h消耗':'This turn · 5h used','本轮周额度消耗':'This turn · weekly used',
   '调整顺序':'Arrange panels','完成排序':'Done arranging','模块展示顺序':'Panel display order','恢复默认顺序':'Restore default order','上移':'Move up','下移':'Move down','拖动调整顺序':'Drag to reorder','拖动或使用上下方向键排序':'Drag or use Up/Down arrow keys to reorder','模块顺序已更新':'Panel order updated','已恢复默认顺序':'Default order restored',
   '拖动列表或模块手柄调整顺序，也可使用上移、下移。顺序自动保存。':'Drag the list or panel handles, or use the arrow buttons. Your order is saved automatically.','无法保存到本机；本次窗口内仍可调整顺序。':'Local saving is unavailable; you can still arrange panels in this window.',
   '账户额度记录':'Account quota','周额度剩余':'Weekly quota remaining','5h剩余':'5h remaining','上一轮5h消耗':'Last turn · 5h used','上一轮周额度消耗':'Last turn · weekly used','刷新额度':'Refresh quota','正在刷新额度':'Refreshing quota','通过本机Codex查询官方额度，不调用模型':'Read official quota through local Codex; no model call','额度刷新失败，请稍后重试':'Could not refresh quota; please retry',

@@ -17,7 +17,10 @@
     $('quota-mini-'+key+'-value').dataset.stale=String(!!(stale||expired||!online));
     $('quota-mini-'+key+'-value').title=(stale||expired||!online?t('快照较旧')+' · ':'')+t('更新于')+' '+date(w?.updatedAt);
    }
-   const previous=q?.previousRound,key=hideFive?'weekly':'fiveHour';set('quota-previous-label',t(hideFive?'上一轮周额度消耗':'上一轮5h消耗'));set('quota-previous-value',percent(previous?.[key]?.percent));
+   const current=q?.rounds?.[0],previous=current?(q.rounds.find(row=>row.id!==current.id&&row.status!=='running')??null):q?.previousRound,key=hideFive?'weekly':'fiveHour';
+   set('quota-current-label',t(hideFive?'本轮周额度消耗':'本轮5h消耗'));set('quota-current-value',percent(current?.[key]?.percent));
+   $('quota-current-value').title=current?(current.title||date(current.startAt))+(current.overlap?' · '+t('含并行使用'):'')+(current[key]?.reason?' · '+t('起止快照不完整'):''):t('起止快照不完整');
+   set('quota-previous-label',t(hideFive?'上一轮周额度消耗':'上一轮5h消耗'));set('quota-previous-value',percent(previous?.[key]?.percent));
    $('quota-previous-value').title=previous?(previous.title||date(previous.startAt))+(previous.overlap?' · '+t('含并行使用'):''):t('尚无上一轮记录');
    const source=[five,week].filter(w=>w?.available).some(w=>w.source==='official')?'官方额度查询':'本机日志快照';
    set('quota-status',t(!online?'监控离线':q?.refreshing?'正在刷新额度':q?.collecting?'额度采集中':source));$('quota-refresh').disabled=!!q?.refreshing;$('quota-refresh').hidden=q?.refreshAvailable===false;

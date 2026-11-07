@@ -105,6 +105,10 @@
 .quota-ring{display:inline-block;flex:0 0 16px;height:16px;border-radius:50%;background:conic-gradient(var(--quota-color,var(--teal)) var(--quota-fill,0%),var(--line) 0);position:relative}
 .quota-ring:after{content:"";position:absolute;inset:3px;border-radius:50%;background:var(--card)}
 .quota-mini[hidden]{display:none}
+.quota-turn-usage{display:grid;gap:1px;flex:0 1 auto;min-width:0}
+#quota-panel .quota-turn-usage .quota-mini{flex-direction:row;align-items:center;gap:4px}
+.quota-turn-usage .quota-mini>span{font-size:9px;line-height:10px;white-space:nowrap}
+.quota-turn-usage .quota-mini strong{font-size:11px;line-height:10px}
 @media(max-width:600px){html[lang="en"] .quota-mini{flex-direction:column;align-items:flex-start;gap:2px}}
 @media(max-width:440px){#quota-panel.is-collapsed>.panel-heading{flex-wrap:wrap;gap:7px}#quota-panel.is-collapsed #quota-panel-summary{flex-basis:100%;justify-content:space-between;gap:8px}}
 #warning{white-space:pre-line}
