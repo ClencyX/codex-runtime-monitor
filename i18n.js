@@ -4,6 +4,14 @@
  const valid=value=>value==='en'||value==='zh-CN'?value:'zh-CN';
  try{language=valid(root.localStorage?.getItem(key));}catch{}
  const en={
+  '调整顺序':'Arrange panels','完成排序':'Done arranging','模块展示顺序':'Panel display order','恢复默认顺序':'Restore default order','上移':'Move up','下移':'Move down','拖动调整顺序':'Drag to reorder','拖动或使用上下方向键排序':'Drag or use Up/Down arrow keys to reorder','模块顺序已更新':'Panel order updated','已恢复默认顺序':'Default order restored',
+  '拖动列表或模块手柄调整顺序，也可使用上移、下移。顺序自动保存。':'Drag the list or panel handles, or use the arrow buttons. Your order is saved automatically.','无法保存到本机；本次窗口内仍可调整顺序。':'Local saving is unavailable; you can still arrange panels in this window.',
+  '账户额度记录':'Account quota','周额度剩余':'Weekly quota remaining','5h剩余':'5h remaining','上一轮5h消耗':'Last turn · 5h used','上一轮周额度消耗':'Last turn · weekly used','刷新额度':'Refresh quota','正在刷新额度':'Refreshing quota','通过本机Codex查询官方额度，不调用模型':'Read official quota through local Codex; no model call','额度刷新失败，请稍后重试':'Could not refresh quota; please retry',
+  '官方额度查询':'Official quota query','本机日志快照':'Local log snapshots','距恢复':'Resets in','已到恢复时间，等待官方更新':'Reset time reached; waiting for an official update','更新于':'Updated','待更新':'Awaiting update','快照较旧':'Older snapshot','尚无上一轮记录':'No previous turn recorded',
+  '当前会话每轮记录':'Turns in the selected session','每轮额度记录，可横向滚动':'Per-turn quota records; scroll horizontally','尚无本会话的额度记录':'No quota records for this session yet','5h消耗':'5h used','周额度消耗':'Weekly used','备注':'Notes','任务':'Task','含并行使用':'Includes concurrent usage','部分数据未知':'Some data unknown','已观测':'Observed',
+  '跨额度恢复或校正，无法直接计算':'Cannot subtract across a reset or correction','未提供此额度':'This quota window is not provided','起止快照不完整':'Start/end snapshots are incomplete','账户额度快照差值':'Difference between account quota snapshots','官方额度刷新暂不可用，当前保留日志或上次查询快照。':'Official refresh is unavailable. Showing log data or the last query snapshot.','部分日志未能完整采集，相关轮次的消耗可能未知。':'Some logs could not be fully collected; affected turns may have unknown consumption.',
+  '记录为该轮起止期间的账户额度快照差值；并行会话及其他设备可能共同消耗。0%表示未观测到百分点变化，不等于零消耗。':'Records show observed account quota differences during each turn. Concurrent sessions and other devices may contribute. 0% means no observed percentage-point change, not zero usage.',
+  '5小时额度剩余':'5-hour quota remaining','额度采集中':'Collecting quota data','等待额度数据':'Waiting for quota data',
   'Codex 运行监控':'Codex Runtime Monitor','Codex 会话':'Codex session','看见活动，及时发现等待':'See activity. Understand the wait.','本机 · 只读':'Local · Read-only','语言':'Language',
   '深色':'Dark','浅色':'Light','深色模式':'Dark mode','切换到深色模式':'Switch to dark mode','切换到浅色模式':'Switch to light mode',
   '正在查看的会话':'Current session','选择 Codex 会话':'Choose a Codex session','正在查找会话…':'Finding sessions…','自动跟随最新会话':'Follow the latest session','显示内部审查会话':'Show internal review sessions','内部审查':'Internal review','内部审查已显示':'Internal reviews shown',
@@ -24,6 +32,8 @@
   '点击箭头展开子操作 · 运行组置顶':'Expand child operations · Running groups stay on top','点击箭头展开或折叠子操作':'Expand or collapse child operations','回到运行中 ↑':'Running tasks ↑','回到最新 ↑':'Latest ↑','回到最新 ↓':'Latest ↓','向下滚动查看更早记录':'Scroll down for earlier records',
   '折叠':'Collapse','收起':'Collapse','展开':'Expand','折叠子操作':'Collapse child operations','展开子操作':'Expand child operations',
   '运行中':'Running','已返回':'Returned','已完成':'Completed','已取消':'Cancelled','失败':'Failed','状态未知':'Unknown','状态待确认':'Unconfirmed','结束未确认':'Unconfirmed','耗时未知':'Unknown','时间未知':'Unknown','未记录耗时':'No duration recorded',
+  '脚本执行环境记录中断，但外层调用缺少返回记录':'The script host recorded an interruption, but the outer call has no return record','该调用总耗时未知。':'The total duration of this call is unknown.','脚本执行环境阶段耗时：':'Script host stage duration: ',
+  '结束未确认：脚本执行环境记录中断，但该调用尚未返回。Codex 可能停在等待结果的步骤。建议在 IDE 中终止当前任务，再重新发送继续指令。':'Completion unconfirmed: the script host recorded an interruption, but this call has not returned. Codex may be waiting for its result. Consider stopping the current task in the IDE, then sending a new instruction to continue.',
   '任务终止':'Task stopped','到达额度':'Usage limit reached','新对话插入':'New message inserted','手动暂停':'Manually paused','上下文超限':'Context limit reached','输出长度限制':'Output limit reached','请求超时':'Request timed out','身份验证失败':'Authentication failed','审批未通过':'Approval rejected','网络连接异常':'Network connection error','用户中断':'Interrupted','原因未知':'Unknown reason','运行错误':'Runtime error',
   '工具调用':'Tool call','组合调用':'Combined call','本地命令':'Local command','等待工具结果':'Waiting for tool results','修改文件':'File change','检索或读取资料':'Search or read sources','查看图片':'View image','读取文件':'Read file','检索资料':'Search sources',
   '任务已记录':'Task recorded','任务已完成':'Task completed','收到最终回复':'Final reply received','收到工作进度':'Progress update received','收到模型处理事件':'Model processing event received','尚未读取到活动':'No activity read yet',
@@ -97,6 +107,7 @@
   if(Object.hasOwn(en,source))return en[source];
   // A task title includes user content. Translate its prefix and preserve the prompt.
   if(source.startsWith('任务：'))return 'Task: '+source.slice(3);
+  if(source.includes('\n'))return source.split('\n').map(translate).join('\n');
   if(source.includes('；'))return source.split('；').map(translate).join('; ');
   if(source.includes(' · '))return source.split(' · ').map(translate).join(' · ');
   for(const [pattern,format] of formats){const match=source.match(pattern);if(match)return format(...match);}

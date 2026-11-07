@@ -71,6 +71,7 @@ function beginCall(s,p,at,metadata){
  const callId=String(id),key='call:'+callId;
  const existing=s.events.find(e=>e.key===key);if(existing){Object.assign(existing,references(p,{},metadata));return;}
  const event={key,callId,at,startedAt:at,endedAt:null,toolLabel:label,label:label+'（运行中）',kind:'tool',operation:true,status:'running',durationMs:null,...references(p,{},metadata)};
+ if(p.name==='exec')event.codeMode=true;
  s.events.push(event);s.events.sort((a,b)=>a.at-b.at);s.pending.push({id:callId,label,startedAt:at,eventKey:key});activity(s,at,event.label);
 }
 function finishCall(s,id,at,suffix='已返回',kind='tool'){
@@ -80,6 +81,7 @@ function finishCall(s,id,at,suffix='已返回',kind='tool'){
  const index=s.pending.findIndex(call=>call.id===callId);if(index>=0)s.pending.splice(index,1);
  const durationMs=Number.isFinite(event.startedAt)&&at>=event.startedAt?at-event.startedAt:null;
  Object.assign(event,{endedAt:at,status:'returned',label:event.toolLabel+suffix,kind,durationMs});
+ delete event.unconfirmedReason;delete event.detail;
  s.lastTool={label:event.toolLabel,durationMs,at,status:'completed'};activity(s,at,event.label);return true;
 }
 function unconfirmedCalls(s){
@@ -208,12 +210,33 @@ export function logTimestamp(row){
 }
 function logResolution(row){return Number.isInteger(row.ts_nanos)&&row.ts_nanos>=0&&row.ts_nanos<1e9?0:999.999;}
 function logTurn(row){return (row.feedback_log_body||'').match(/(?:turn\.id|turn_id)[=\s]+["']?([\w-]+)/)?.[1]||null;}
+export function interruptedHost(row){
+ if(row.target!=='codex_code_mode::timing')return null;
+ const body=row.feedback_log_body||'',marker='code-mode host operation completed',index=body.lastIndexOf(marker);
+ if(index<0||!/\boutcome="interrupted"/.test(body.slice(0,index)))return null;
+ const fields=body.slice(index);
+ if(!/\bevent\.name="codex\.code_mode\.host_timing"/.test(fields)||!/\btool_name="exec"/.test(fields))return null;
+ const callId=identifier(fields.match(/\bcall_id=(?:"([\w.:-]+)"|([\w.:-]+))/)?.slice(1).find(Boolean));
+ if(!callId)return null;
+ const nanos=Number(fields.match(/\bcode_mode_host_duration_ns=(\d+)\b/)?.[1]);
+ return {callId,durationMs:Number.isSafeInteger(nanos)&&nanos>=0?nanos/1e6:null};
+}
+function markHostInterrupted(s,host,at){
+ const event=s.events.find(entry=>entry.callId===host.callId&&entry.codeMode);
+ if(!event||event.status==='returned'||event.status==='failed'||event.unconfirmedReason)return;
+ // This is a host-stage observation, not an authoritative call/turn completion.
+ Object.assign(event,{status:'unknown',kind:'warning',durationMs:null,endedAt:null,hostInterruptedAt:at,hostDurationMs:host.durationMs,unconfirmedReason:'host-interrupted',label:event.toolLabel+'（结束未确认）',detail:'脚本执行环境记录中断，但外层调用缺少返回记录；该调用总耗时未知。'});
+ s.pending=s.pending.filter(call=>call.id!==host.callId);
+ if(!s.lastTool||at>=s.lastTool.at)s.lastTool={label:event.toolLabel,durationMs:null,at,status:'unknown'};
+ activity(s,at,event.label);
+}
 export function reduceLog(s,row){
  const at=logTimestamp(row);if(!Number.isFinite(at)||s.startedAt&&at+logResolution(row)<s.startedAt)return;
  if(s.endedAt&&at>s.endedAt)return;
  const body=row.feedback_log_body||'';
  const turn=logTurn(row);
  if(turn&&s.turnId&&turn!==s.turnId)return;
+ const host=interruptedHost(row);if(host){markHostInterrupted(s,host,at);return;}
  const diagnostic=row.target!=='feedback_tags'&&!/Output item item_type=/.test(body),reason=connectionReason(body);
  if(diagnostic&&/falling back to HTTP/i.test(body)){
   connectionEvent(s,row,at,'fallback','传输回退至 HTTP','传输回退：从 WebSocket 切换到 HTTP/HTTPS'+(reason?'；原因：'+reason:''));
@@ -245,7 +268,11 @@ export class SessionTail{
    return (!s.startedAt||at+logResolution(row)>=s.startedAt)&&(!s.endedAt||at<=s.endedAt)&&at<nextStart;
   });
   // Without an explicit turn ID, overlapping coarse timestamps are ambiguous.
-  if(candidates.length===1){reduceLog(candidates[0],row);return true;}
+   if(candidates.length===1){
+    const host=interruptedHost(row),state=candidates[0];
+    // SQL may be written before the matching JSONL call has been consumed.
+    if(!host||state.status!=='running'||state.events.some(event=>event.callId===host.callId)){reduceLog(state,row);return true;}
+   }
   if(queue){
    this.pendingLogs.set(row.id,{row,receivedAt:Date.now()});
    while(this.pendingLogs.size>2000)this.pendingLogs.delete(this.pendingLogs.keys().next().value);

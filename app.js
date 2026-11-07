@@ -6,8 +6,9 @@ let stateController=null,lastStateReceivedAt=null;
 let windowStorage;try{windowStorage=sessionStorage;}catch{windowStorage={getItem:()=>null,setItem:()=>{}};}
 const windowHistory=new CodexMonitorActivity.WindowHistory(windowStorage);
 let activityTurns=[];
+const quotaView=new CodexMonitorQuotaView($,I18n);
 
-const panelIds=['task-panel','tools-panel','network-panel','plan-panel','activity-panel'],collapsedPanels=new Set(),panelScrollPositions=new Map();
+const panelIds=['task-panel','quota-panel','tools-panel','network-panel','plan-panel','activity-panel'],collapsedPanels=new Set(),panelScrollPositions=new Map();
 try{const saved=JSON.parse(windowStorage.getItem('codex-monitor-panel-collapse')||'[]');if(Array.isArray(saved))for(const id of saved)if(panelIds.includes(id))collapsedPanels.add(id);}catch{}
 function isPanelCollapsed(id){return collapsedPanels.has(id);}
 function setPanelExpanded(panel,expanded,persist=false){
@@ -146,13 +147,16 @@ function updateEventRow(li,row,now){
  operation.classList.toggle('is-live',live);
  operation.textContent=t(event.toolLabel||event.label);
  operation.title=operation.textContent+(event.sources?'\n'+t('模型处理条目的日志通知；同一 ID 的多来源记录已合并，不代表任务进度百分比。'):'');
+ if(event.detail)operation.title+='\n'+t(event.detail);
+ if(event.unconfirmedReason==='host-interrupted'&&Number.isFinite(event.hostDurationMs))operation.title+='\n'+t('脚本执行环境阶段耗时：')+t(short(event.hostDurationMs));
  status.hidden=!event.operation;
  emptyStatus.hidden=Boolean(event.operation);
  status.textContent=t(running&&!online?'状态待确认':event.groupRoot?taskStatusText(event.taskStatus,event.terminationReason):({running:'运行中',returned:'已返回',failed:'失败',unknown:'结束未确认'}[event.status]||'状态未知'));
  if(event.groupRoot&&event.taskStatus==='terminated'){
   const name=document.createElement('span'),reason=document.createElement('span');name.textContent=t('任务终止');reason.textContent=t('（'+(event.terminationReason||'原因未知')+'）');status.replaceChildren(name,reason);
  }
- status.dataset.status=running&&!online?'unknown':event.status;
+ status.dataset.status=running&&!online?'unknown':event.unconfirmedReason==='host-interrupted'?'unconfirmed':event.status;
+ status.title=event.detail?t(event.detail):'';
  stateCell.setAttribute('aria-label',t(event.operation?'状态：'+status.textContent:'事件通知，无操作状态'));
  summary.hidden=!hasChildren;
  summary.textContent=t((event.groupRoot?node.descendantRecords+' 条记录 · '+node.childCount+' 条工具记录':node.childCount?node.childCount+' 项子操作':node.descendantRecords+' 条记录')+(node.runningChildren?' · '+node.runningChildren+(online?' 项运行中':' 项状态待确认'):''));
@@ -275,12 +279,25 @@ function renderNetwork(n){
 
 
 const terminal={completed:'已完成',cancelled:'已取消',failed:'失败',unknown:'状态未知',unconfirmed:'状态待确认',running:'运行中'};
+function operationWarning(s){
+ return s?.status==='running'&&s.events.some(event=>event.status==='unknown'&&event.unconfirmedReason==='host-interrupted')
+  ?'结束未确认：脚本执行环境记录中断，但该调用尚未返回。Codex 可能停在等待结果的步骤。建议在 IDE 中终止当前任务，再重新发送继续指令。':'';
+}
+function renderWarning(s,active,quiet){
+ const anomaly=operationWarning(s),messages=[anomaly,s.readError,s.dbError,current.discoveryError].filter(Boolean);
+ if(!messages.length&&active&&quiet!==null&&quiet>=Number($('threshold').value)*1000)messages.push(`已连续 ${Math.floor(quiet/1000)} 秒没有新活动。可能仍在处理，也可能在等待连接；目前无法确认。`);
+ if(!messages.length&&active&&s.retries>0)messages.push('本轮记录过连接重试，请结合最近活动时间判断是否恢复。');
+ const warning=$('warning'),role=anomaly?'alert':'status';
+ if(warning.getAttribute('role')!==role)warning.setAttribute('role',role);
+ warning.hidden=!messages.length;text('warning',messages.join('\n'));
+}
 function taskStatusText(status,reason){return status==='terminated'?'任务终止（'+(reason||'原因未知')+'）':terminal[status]||'状态未知';}
 function duration(ms){if(ms===null||!Number.isFinite(ms))return '—';const s=Math.max(0,Math.floor(ms/1000));return s>=3600?`${Math.floor(s/3600)}:${String(Math.floor(s%3600/60)).padStart(2,'0')}:${String(s%60).padStart(2,'0')}`:`${String(Math.floor(s/60)).padStart(2,'0')}:${String(s%60).padStart(2,'0')}`;}
 function short(ms){return CodexMonitorActivity.formatDuration(ms);}
 function text(id,value){const node=$(id);node.dataset.i18nSource=String(value??'');node.textContent=t(value);}
 function safeOption(title,id,internal=false){const option=document.createElement('option');option.value=id;option.textContent=internal?`${t('内部审查')} · ${title} (${id.slice(0,8)})`:title;return option;}
 function stateUrl(id=selected){const params=new URLSearchParams();if(id)params.set('session',id);params.set('historySince',String(windowHistory.since));if(windowHistory.initial[id])params.set('initialTurn',windowHistory.initial[id]);if($('show-internal').checked)params.set('includeInternal','1');return '/api/state?'+params.toString();}
+$('quota-refresh').addEventListener('click',async()=>{const button=$('quota-refresh');button.disabled=true;try{const response=await fetch('/api/quota/refresh',{method:'POST',headers:{'X-Monitor-Action':'refresh-quota'}});if(!response.ok&&response.status!==429)throw Error();await poll();}catch{text('quota-status','额度刷新失败，请稍后重试');}finally{button.disabled=false;}});
 try{$('show-internal').checked=localStorage.getItem('codex-monitor-show-internal')==='true';}catch{}
 $('show-internal').addEventListener('change',()=>{try{localStorage.setItem('codex-monitor-show-internal',String($('show-internal').checked));}catch{}generation++;stateController?.abort();lastOptions='';poll();});
 try{$('threshold').value=localStorage.getItem('codex-monitor-threshold')||'60';}catch{}
@@ -307,6 +324,7 @@ async function poll(){if(stopped||busy)return;busy=true;const requestGeneration=
  }catch{if(requestGeneration===generation){online=false;showOffline('连接不到本机监控服务或读取超时。下方是最后一次读取的记录，不能代表 Codex 的最新状态。');text('health','监控连接中断');}}finally{clearTimeout(timeout);if(stateController===controller)stateController=null;busy=false;}}
 function render(){
  checkStateFreshness();
+ quotaView.render(current?.quota,online,Date.now()+offset);
  renderNetwork(current?.network);
  if(!current){updatePanelSummaries(null);return;}const s=current.state;if(!s){text('last-action',current.discoveryError||'尚未发现会话');text('status','等待会话');updatePanelSummaries(null);return;}
  const now=Date.now()+offset,active=s.status==='running',end=s.endedAt||now;
@@ -316,13 +334,10 @@ function render(){
  text('hero-note',active?'计时持续更新；实际内部处理状态以可观察事件为限。':s.status==='terminated'?(s.endedAt?'已记录终止事件，计时已停止。':'已被新一轮替代；未取得确切结束时间，耗时未知。'):s.status==='unknown'?'尚无完整任务起止记录，不能判断任务是否运行。':'已记录结束事件，计时已停止。');
  const quiet=s.lastActivityAt?Math.max(0,now-s.lastActivityAt):null;text('quiet',duration(quiet));text('quiet-caption',active?'距离最近一次可识别活动':'距最后活动；本轮已结束或状态未知');
  text('first',s.firstReplyAt&&s.startedAt?duration(s.firstReplyAt-s.startedAt):active&&s.startedAt?duration(now-s.startedAt):'—');text('first-caption',s.firstReplyAt?'已记录首条回复':active?'仍在等待首条回复':'未记录首条回复');
- const pending=s.pending.at(-1);text('tool-label',pending?`${pending.label}（尚未记录返回）`:s.lastTool?`${s.lastTool.label}已结束`:'未记录工具调用');text('tool-duration',s.lastTool?short(s.lastTool.durationMs):'—');
+ const pending=s.pending.at(-1);text('tool-label',pending?`${pending.label}（尚未记录返回）`:s.lastTool?s.lastTool.label+(s.lastTool.status==='unknown'?'（结束未确认）':'已结束'):'未记录工具调用');text('tool-duration',s.lastTool?short(s.lastTool.durationMs):'—');
  text('retries',s.retries);text('failures',s.failures);text('fallbacks',s.fallbacks);text('request-size',s.requestBytes!==null?`最近请求体 ${(s.requestBytes/1e6).toFixed(2)} MB`:'');
  renderConnectionDetails(s);
- let warning=s.readError||s.dbError||current.discoveryError;
- if(!warning&&active&&quiet!==null&&quiet>=Number($('threshold').value)*1000)warning=`已连续 ${Math.floor(quiet/1000)} 秒没有新活动。可能仍在处理，也可能在等待连接；目前无法确认。`;
- if(!warning&&active&&s.retries>0)warning='本轮记录过连接重试，请结合最近活动时间判断是否恢复。';
- $('warning').hidden=!warning;text('warning',warning||'');
+ renderWarning(s,active,quiet);
  $('plan-panel').hidden=!s.plan.length;if(s.plan.length){const done=s.plan.filter(x=>x.status==='completed').length;text('plan-count',`${done} / ${s.plan.length} 已完成`);$('plan-progress').max=s.plan.length;$('plan-progress').value=done;$('plan').replaceChildren(...s.plan.map(p=>{const li=document.createElement('li');li.textContent=(p.status==='completed'?'✓':t(p.status==='inProgress'?'进行中 ·':'待开始 ·'))+' '+p.step;return li;}));}
  renderEvents(s);
  updatePanelSummaries(s);

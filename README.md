@@ -2,7 +2,7 @@
 
 [English](README.md) · [简体中文](README.zh-CN.md)
 
-**Version: v0.1.1** · [Changelog](CHANGELOG.md) · [MIT License](LICENSE)
+**Version: v0.1.4** · [Changelog](CHANGELOG.md) · [MIT License](LICENSE)
 
 **See what Codex has recorded while you wait for a response.**
 
@@ -103,6 +103,18 @@ Point to the directory containing `sessions`, `session_index.jsonl` and, when av
 
 Duration cells show milliseconds below one second, then completed integer seconds: `543ms`, `39s`, `3m 15s`, `1h 5m 39s` in English; `543 毫秒`, `39 秒`, `3 分 15 秒`, `1 小时 5 分 39 秒` in Chinese. Raw recorded millisecond information is retained. Live activity clocks refresh approximately every 100 ms; state records are polled approximately every second.
 
+## Panel display order
+
+Click **Arrange panels** in the top toolbar, beside the language and theme controls. Drag a row in the settings list or a panel's grip, or use the up/down buttons. A focused panel grip also supports the Up/Down arrow keys. Click **Done arranging** when finished; **Restore default order** restores the original layout. The session selector stays fixed at the top. The order is saved in this browser, survives reopening, and syncs between monitor windows on the same local address. Reordering preserves the existing cards, their disclosure state and table scroll positions.
+
+## Account quota records
+
+The collapsible quota panel shows 5-hour and weekly remaining balances with reset countdowns. Each progress bar and remaining-balance ring turns red-orange below 10% and returns to its normal color at 10% or above. When collapsed, it shows the previous turn's observed quota consumption and remaining-balance rings. A missing 5-hour window is hidden based on the returned data, not a guessed subscription rule.
+
+Balances use local snapshots plus the official [`account/rateLimits/read`](https://learn.chatgpt.com/docs/app-server#6-rate-limits-chatgpt) method through an installed Codex executable and its existing sign-in. The monitor queries at most once per minute automatically; **Refresh quota** requests another read. It does not create a thread or invoke a model. Older, lower-usage log snapshots cannot roll a balance back within the same reset window; a fresh official query can apply a genuine correction. Update times remain visible. On failure, the last snapshot is retained with a notice. Set `CODEX_MONITOR_CODEX_BIN` to an executable path if autodetection fails, or `CODEX_MONITOR_QUOTA_DISABLED=1` to use logs only.
+
+The selected session's latest 100 observed turns show differences between account snapshots near the turn boundaries. These are **observations, not exact per-turn billing**: concurrent sessions and other devices may contribute. Overlap is labelled; missing/stale boundaries, collection gaps and resets show unknown instead of invented percentages. `0%` means no observed percentage-point change. Recent records are reconstructed from bounded local log tails, so older records may be unavailable. Changing accounts can invalidate comparisons. No burn rate or token-to-quota conversion is displayed.
+
 ## How it works
 
 ```mermaid
@@ -119,7 +131,7 @@ The tool observes existing records. It does not start a new Codex App Server, in
 
 ### Data handling
 
-- The service binds to **`127.0.0.1`**. Its application code sends no telemetry, requests to remote services or model calls.
+- The service binds to **`127.0.0.1`**. It sends no telemetry or model calls. Quota refresh asks the installed Codex process to query the official account service using its existing sign-in.
 - It reads session JSONL, `session_index.jsonl`, the local `logs_*.sqlite` database, Windows connection ownership, and the local Mihomo statistics interface. It does not read `auth.json` or proxy subscriptions.
 - **The local interface receives session names, full task prompt titles, working directories, model labels and derived event summaries.** The dashboard displays the session and task information it needs. Raw reasoning content, command arguments, tool output, request headers and raw proxy connection lists are not sent to the page.
 - Observed task history is held in browser-window `sessionStorage`, with an in-memory fallback if storage is unavailable. Traffic history is held in service memory for up to 30 minutes and resets when the service restarts.
