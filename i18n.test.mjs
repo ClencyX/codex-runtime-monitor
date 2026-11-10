@@ -11,6 +11,7 @@ test('all static UI strings have English translations',()=>{
 });
 test('diagnostic details, counts, durations and accessibility text are localized',()=>{
  const {i18n}=fixture('en');
+ for(const source of ['进行中','检查更新','发现新版本','正在检查更新…','正在向 GitHub 查询公开版本信息…','当前版本与最新正式版一致','本地版本高于最新正式版','检查超时，请检查网络或稍后重试。','检查失败，请检查网络或稍后重试。','GitHub 请求受限，请稍后重试。','版本信息无法识别，请到发布页查看。','无法读取本地版本，请刷新页面重试。'])assert.ok(!/[\u3400-\u9fff]/.test(i18n.translate(source)),source);
  const samples=['任务终止（到达额度）','本地命令（运行中）','本地命令已结束','连接重试（本组 2/5）；原因：请求超时；等待 188 毫秒后重试','日志记录请求失败；原因：TLS 或证书错误；HTTP 状态 502','传输回退：从 WebSocket 切换到 HTTP/HTTPS','3 条记录 · 2 条工具记录 · 1 项运行中','重试 2 · 失败 0 · 回退 1','已完成 2 / 3','本轮暂无失败记录','本轮重试记录，按时间从晚到早','运行中，已用 1.1 秒','状态：任务终止（手动暂停）','全部 Codex 进程最近10分钟上传和下载速率，左右方向键查看采样','codex.exe · PID 100（已退出）','[02:03] Codex 运行监控'];
  for(const source of samples)assert.ok(!/[\u3400-\u9fff]/.test(i18n.translate(source)),source+' => '+i18n.translate(source));
  assert.equal(i18n.translate('1.1 秒'),'1.1s');assert.equal(i18n.translate('0 毫秒'),'0ms');assert.equal(i18n.translate('耗时未知'),'Unknown');

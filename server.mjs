@@ -9,8 +9,11 @@ import {blankState,SessionTail,discoverSessions,visibleSessions} from './monitor
 import {NetworkMonitor} from './network.mjs';
 import {NetworkHistory} from './network-history.mjs';
 import {QuotaMonitor} from './quota.mjs';
+import {UpdateChecker} from './update.mjs';
 
 const root=path.dirname(fileURLToPath(import.meta.url));
+const appVersion=fs.readFileSync(path.join(root,'VERSION'),'utf8').trim();
+const updates=new UpdateChecker(appVersion);
 const home=path.resolve(process.env.CODEX_MONITOR_HOME||process.env.CODEX_HOME||path.join(os.homedir(),'.codex'));
 const args=process.argv.slice(2),pi=args.indexOf('--port');
 const port=pi>=0?Number(args[pi+1]):47831;
@@ -58,6 +61,7 @@ const activityTreeJs=fs.readFileSync(path.join(root,'activity-tree.js'));
 const networkChartJs=fs.readFileSync(path.join(root,'network-chart.js'));
 const quotaUiJs=fs.readFileSync(path.join(root,'quota-ui.js'));
 const panelOrderJs=fs.readFileSync(path.join(root,'panel-order.js'));
+const updateUiJs=fs.readFileSync(path.join(root,'update-ui.js'));
 const themeJs=fs.readFileSync(path.join(root,'theme.js'));
 const i18nJs=fs.readFileSync(path.join(root,'i18n.js'));
 const css=fs.readFileSync(path.join(root,'style.css'));
@@ -70,6 +74,12 @@ const server=http.createServer((req,res)=>{
  res.setHeader('Referrer-Policy','no-referrer');
  let url;try{url=new URL(req.url,origin);}catch{json(res,400,{error:'请求地址不正确'});return;}
  if(req.method==='GET'&&url.pathname==='/api/health'){json(res,200,{app:'codex-local-monitor',version:1});return;}
+ if(req.method==='GET'&&url.pathname==='/api/version'){json(res,200,{version:appVersion});return;}
+ if(req.method==='POST'&&url.pathname==='/api/update/check'){
+  if(req.headers.origin!==origin||req.headers['x-monitor-action']!=='check-update'){json(res,403,{error:'请求来源不允许'});return;}
+  updates.check().then(result=>{if(!res.destroyed)json(res,200,result);}).catch(()=>{if(!res.destroyed)json(res,200,{ok:false,error:'unavailable'});});return;
+ }
+ if(req.method==='GET'&&url.pathname==='/update-ui.js'){res.writeHead(200,{'Content-Type':'text/javascript; charset=utf-8','Cache-Control':'no-store','X-Content-Type-Options':'nosniff'});res.end(updateUiJs);return;}
  if(req.method==='GET'&&url.pathname==='/api/network-history'){
   try{json(res,200,networkHistory.read({processId:url.searchParams.get('process')||'',rangeSeconds:url.searchParams.has('range')?Number(url.searchParams.get('range')):600,after:url.searchParams.has('after')?Number(url.searchParams.get('after')):null,epoch:url.searchParams.get('epoch')}));}
   catch{json(res,400,{error:'流量历史查询参数不正确'});}return;
@@ -107,7 +117,7 @@ function openWindow(url){
   const child=edge?spawn(edge,[`--app=${url}`,'--window-size=530,930'],{detached:true,stdio:'ignore',windowsHide:false}):spawn('powershell.exe',['-NoProfile','-Command',`Start-Process '${url}'`],{detached:true,stdio:'ignore',windowsHide:true});child.unref();
  }else console.log(`Open ${url}`);
 }
-function shutdown(){if(closing)return;closing=true;clearInterval(timer);clearInterval(historyTimer);network.stop();quota.stop();try{db?.close();}catch{}for(const socket of clients)socket.destroy();server.close(()=>process.exit(0));setTimeout(()=>process.exit(0),800).unref();}
+function shutdown(){if(closing)return;closing=true;updates.stop();clearInterval(timer);clearInterval(historyTimer);network.stop();quota.stop();try{db?.close();}catch{}for(const socket of clients)socket.destroy();server.close(()=>process.exit(0));setTimeout(()=>process.exit(0),800).unref();}
 server.on('error',async error=>{
  clearInterval(timer);clearInterval(historyTimer);network.stop();quota.stop();try{db?.close();}catch{}
  if(error.code==='EADDRINUSE'){

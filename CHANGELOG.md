@@ -1,5 +1,20 @@
 # Changelog / 更新记录
 
+## v0.1.5 — 2026-11-10
+
+Manual update checks and a bilingual visual feature tour. / 手动检查更新与中英文图文功能介绍。
+
+- Added a local version display and an explicit, user-triggered check for the latest stable GitHub Release. Startup and background monitoring do not check automatically.
+- Added numeric version comparison, publication dates and release/download links. Checks use a fixed anonymous endpoint, bounded responses, timeouts, shared in-flight requests and a 30-second result cache. Failed checks never report that the application is up to date. Downloads and installation remain manual.
+- Clarified that monitoring data stays local: no conversation content, task/tool records, working directories or traffic statistics are uploaded, and no telemetry is collected. Documented official quota queries and user-triggered GitHub requests separately.
+- Rebuilt the English and Chinese README with language-matched full-window screenshots, feature details and actual UI animations generated from synthetic data. Added a reproducible local-only capture tool.
+- Removed four unreferenced legacy screenshots from the current source tree; historical releases and commits remain available.
+- Corrected outdated account-summary and App Server descriptions, and translated the remaining English quota-table status.
+- 139 automated tests passed on Windows with Node.js 24.19.0. Isolated-browser checks covered both languages, narrow layouts, update success/failure, all panels and zero external page requests during documentation capture.
+- Retained the standard MIT License and source-based distribution. Existing releases and tags are preserved.
+
+新增底部手动检查更新：仅用户点击时匿名查询 GitHub 正式版信息，在本机比较版本，提供日期与下载入口，不自动安装。完善“不上传监控数据、无遥测”的声明，同时说明官方额度查询和 GitHub 请求的联网范围。中英文 README 分别配套完整界面、功能截图与动态演示，全部使用合成数据。修正折叠额度摘要、App Server 和英文状态文案。保留历史版本和纯 MIT 许可证。
+
 ## v0.1.4 — 2026-11-08
 
 Account quota records, customizable layout and interrupted-call diagnostics. / 新增账户额度记录、模块排序与调用中断诊断。

@@ -4,6 +4,16 @@
  const valid=value=>value==='en'||value==='zh-CN'?value:'zh-CN';
  try{language=valid(root.localStorage?.getItem(key));}catch{}
  const en={
+  '进行中':'In progress','当前版本':'Current version','检查更新':'Check for updates','正在检查更新…':'Checking…',
+  '仅在点击时访问 GitHub，不上传监控数据。':'Contacts GitHub only when clicked. No monitoring data is uploaded.',
+  '正在向 GitHub 查询公开版本信息…':'Reading public release information from GitHub…',
+  '检查超时，请检查网络或稍后重试。':'The check timed out. Check your connection or try again later.',
+  'GitHub 请求受限，请稍后重试。':'GitHub rate limit reached. Please try again later.',
+  '版本信息无法识别，请到发布页查看。':'Release information could not be recognized. Please visit the releases page.',
+  '无法读取本地版本，请刷新页面重试。':'Could not read the local version. Reload the page to retry.',
+  '检查失败，请检查网络或稍后重试。':'Could not check for updates. Check your connection or try again later.',
+  '发现新版本':'New version available','当前版本与最新正式版一致':'Matches the latest stable release','本地版本高于最新正式版':'Local version is ahead of the latest stable release',
+  '发布日期':'Published','查看版本与下载 ↗':'Release details & download ↗','GitHub 发布页 ↗':'GitHub releases ↗',
   '本轮5h消耗':'This turn · 5h used','本轮周额度消耗':'This turn · weekly used',
   '调整顺序':'Arrange panels','完成排序':'Done arranging','模块展示顺序':'Panel display order','恢复默认顺序':'Restore default order','上移':'Move up','下移':'Move down','拖动调整顺序':'Drag to reorder','拖动或使用上下方向键排序':'Drag or use Up/Down arrow keys to reorder','模块顺序已更新':'Panel order updated','已恢复默认顺序':'Default order restored',
   '拖动列表或模块手柄调整顺序，也可使用上移、下移。顺序自动保存。':'Drag the list or panel handles, or use the arrow buttons. Your order is saved automatically.','无法保存到本机；本次窗口内仍可调整顺序。':'Local saving is unavailable; you can still arrange panels in this window.',
