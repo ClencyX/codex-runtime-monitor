@@ -1,5 +1,15 @@
 # Changelog / 更新记录
 
+## v0.1.6 — 2026-11-13
+
+- Improved Codex TCP/UDP traffic attribution and fixed cases where unrelated UDP traffic could be counted as Codex traffic.
+- The traffic chart no longer connects missing samples with a dashed line when the gap exceeds 10 seconds.
+- Fixed automatic following switching to a chat that was only opened or preparing; it now follows the session whose task started most recently.
+- Fixed elapsed durations being truncated in Recent activity in some layouts.
+- Improved task-title reading in account quota records when messages contain empty content blocks.
+
+完善 Codex TCP/UDP 流量归属，修复部分情况下将无关 UDP 流量计入 Codex 的问题。流量趋势图超过 10 秒的采样缺口不再用虚线连接。修复仅打开或准备会话就触发自动跟随的问题，改为跟随最近开始执行任务的会话。修复部分布局下“最近活动”耗时显示不全的问题。改进消息包含空内容块时账户额度记录中的任务标题读取。
+
 ## v0.1.5 — 2026-11-10
 
 Manual update checks and a bilingual visual feature tour. / 手动检查更新与中英文图文功能介绍。

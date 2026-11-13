@@ -23,9 +23,10 @@ export class QuotaLedger{
    if(task){task.end=at;task.status=['task_complete','task_completed'].includes(p.type)?'completed':'terminated';}return;
   }
   const task=this.sources.get(source);if(!task||task.title||finite(task.end))return;
-  let content=null;if(r.type==='response_item'&&p.type==='message'&&p.role==='user')content=p.content;
-  if(r.type==='event_msg'&&p.type==='user_message')content=p.message;
-  const text=typeof content==='string'?content:Array.isArray(content)?content.map(x=>x.text||'').join('\n'):'';
+  const content=r.type==='response_item'&&p.type==='message'&&p.role==='user'?p.content:r.type==='event_msg'&&p.type==='user_message'?p.message:null;
+  let text='';
+  if(typeof content==='string')text=content;
+  else if(Array.isArray(content))text=content.map(part=>part?.text||'').join('\n');
   if(text.trim()&&!/^\s*(?:# AGENTS\.md instructions|<environment_context>|<permissions instructions>|<turn_aborted>|<INSTRUCTIONS>)/.test(text))task.title=text.trim().replace(/\s+/g,' ').slice(0,240);
  }
  quota(limits,at=this.now(),origin='log'){
@@ -45,7 +46,7 @@ export class QuotaLedger{
    // A fresh account query supersedes cached snapshots from other conversations.
    if(point.origin==='log'&&point.at<officialAt+60000)continue;
    if(point.origin==='official')officialAt=point.at;
-   if(point.origin==='log'&&current?.available&&point.available){
+   if(point.origin==='log'&&current!==null&&current.available&&point.available){
     if(point.resetAt<current.resetAt-2000)continue;
     if(Math.abs(point.resetAt-current.resetAt)<=2000&&point.used<current.used)continue;
    }
@@ -106,9 +107,15 @@ export class QuotaMonitor{
  refresh(){
   if(this.refreshing)return this.refreshing;if(this.closed)return Promise.resolve(false);
   this.lastAttempt=this.now();this.refreshing=(async()=>{try{const result=await this.reader.read();if(this.closed)return false;
-    const limits=result?.rateLimitsByLimitId?.codex??result?.rateLimits;if(!limits||!['primary','secondary'].some(k=>Object.hasOwn(limits,k)))throw Error('unavailable');
+    const limits=result?.rateLimitsByLimitId?.codex??result?.rateLimits;
+    if(!limits||!['primary','secondary'].some(k=>Object.hasOwn(limits,k))){this.refreshError='unavailable';return false;}
     this.ledger.quota(limits,this.now(),'official');this.refreshError=null;this.refreshAt=this.now();return true;
    }catch(error){this.refreshError=['not-found','disabled','timeout','unavailable'].includes(error.message)?error.message:'unavailable';return false;}finally{this.refreshing=null;}})();return this.refreshing;
+ }
+ // Reuse already-read local task metadata; following needs no extra file scans or quota request.
+ sessionStarts(){
+  const starts=new Map();for(const task of this.ledger.tasks.values())if(!task.internal&&finite(task.start)&&task.start>(starts.get(task.source)??-Infinity))starts.set(task.source,task.start);
+  return starts;
  }
  snapshot(selected=null){return {...this.ledger.snapshot(this.now(),selected),collecting:this.busy&&!this.lastCompletedAt,lastCompletedAt:this.lastCompletedAt,readErrors:this.errors,limited:this.limited,observedSessions:this.files.size,refreshing:!!this.refreshing,refreshAvailable:this.reader.enabled!==false,refreshError:this.refreshError,refreshAt:this.refreshAt};}
  stop(){this.closed=true;this.reader.stop();}

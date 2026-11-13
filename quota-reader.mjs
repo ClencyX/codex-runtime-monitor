@@ -27,7 +27,7 @@ export class QuotaReader{
     if(m.id===0){if(m.error||!m.result){finish('unavailable');return;}send({method:'initialized',params:{}});send({method:'account/rateLimits/read',id:1});}
     if(m.id===1)finish(m.error?'unavailable':null,m.result);
    });timer=setTimeout(()=>finish('timeout'),this.timeoutMs);
-   send({method:'initialize',id:0,params:{clientInfo:{name:'codex_runtime_monitor',version:'0.1.5'}}});
+   send({method:'initialize',id:0,params:{clientInfo:{name:'codex_runtime_monitor',version:'0.1.6'}}});
   }).finally(()=>{this.pending=null;this.cancel=null;this.child=null;});return this.pending;
  }
  stop(){const child=this.child;this.cancel?.();if(child&&child.exitCode===null)child.kill();}

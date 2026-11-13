@@ -97,9 +97,9 @@ test('cached running turns outside the restart replay window become unconfirmed 
 });
 test('unmatched process rates stay unknown independently of another matched process',()=>{
  let wall=base;const counter=new CodexTrafficCounters(()=>wall),p1={id:'100:1',pid:100,name:'codex.exe'},p2={id:'200:1',pid:200,name:'codex.exe'};
- const socket=(p,port)=>({processId:p.id,localAddress:'127.0.0.1',localPort:port,remoteAddress:'127.0.0.1',remotePort:7897});
+ const socket=(p,port)=>({processId:p.id,protocol:'tcp',localAddress:'127.0.0.1',localPort:port,remoteAddress:'127.0.0.1',remotePort:7897});
  const sample={processes:[p1,p2],sockets:[socket(p1,5000),socket(p2,6000)]};
- const conn=(id,port,bytes)=>({id,download:bytes,upload:bytes,start:new Date(base-1000).toISOString(),metadata:{sourceIP:'127.0.0.1',sourcePort:port,inboundIP:'127.0.0.1',inboundPort:7897}});
+ const conn=(id,port,bytes)=>({id,download:bytes,upload:bytes,start:new Date(base-1000).toISOString(),metadata:{sourceIP:'127.0.0.1',sourcePort:port,inboundIP:'127.0.0.1',inboundPort:7897,network:'tcp'}});
  counter.accept(sample,{connections:[conn('a',5000,0)]},0);wall+=1000;counter.accept(sample,{connections:[conn('a',5000,1000)]},1000);
  let snapshot=counter.snapshot(),a=snapshot.processes[0],b=snapshot.processes[1];assert.equal(a.receivedPerSecond,1000);assert.equal(b.status,'unmapped');assert.equal(b.receivedPerSecond,null);assert.equal(b.sentPerSecond,null);assert.equal(b.totalReceived,0);
  const history=new NetworkHistory({now:()=>wall});history.capture(snapshot);assert.equal(history.read({processId:p2.id}).points[0].receivedPerSecond,null);

@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {CodexTrafficCounters,readProxyJson} from './network.mjs';
 import {NetworkHistory} from './network-history.mjs';
 const proc={id:'100:1',pid:100,name:'codex.exe'};
-const socket={processId:proc.id,localAddress:'127.0.0.1',localPort:5000,remoteAddress:'127.0.0.1',remotePort:7897};
+const socket={processId:proc.id,protocol:'tcp',localAddress:'127.0.0.1',localPort:5000,remoteAddress:'127.0.0.1',remotePort:7897};
 const os={processes:[proc],sockets:[socket]};
 const connection=(id,download,upload,port=5000,extra={})=>({id,download,upload,start:'2000-01-01T00:00:00Z',metadata:{sourceIP:'127.0.0.1',sourcePort:String(port),inboundIP:'127.0.0.1',inboundPort:'7897',network:'tcp',host:'private-host.example',...extra}});
 function fixture(){let wall=Date.parse('2026-10-31T00:00:00Z');const counter=new CodexTrafficCounters(()=>wall);return {counter,advance:ms=>wall+=ms};}
@@ -17,6 +17,38 @@ test('only Codex-owned endpoints count; global and browser traffic never contrib
 test('process name alone cannot attribute unrelated traffic and conflicting names are excluded',()=>{
  const {counter}=fixture();counter.accept(os,{connections:[connection('fake',100,100,6000,{process:'codex.exe'}),connection('conflict',200,200,5000,{process:'notcodex.exe'})]},0);
  assert.equal(counter.snapshot().status,'unmapped');assert.equal(counter.snapshot().processes[0].connectionCount,0);assert.equal(counter.snapshot().receivedPerSecond,null);assert.equal(counter.snapshot().totalReceived,0);
+});
+
+test('UDP source-port collisions never count even when TUN has no process identity',()=>{
+ for(const network of ['udp','UDP']){
+  const {counter,advance}=fixture();
+  const udp=connection('udp-collision',1000,2000,5000,{network,type:'Tun',inboundIP:'',inboundPort:0});
+  counter.accept(os,{connections:[udp]},0);advance(1000);
+  counter.accept(os,{connections:[{...udp,download:1000000,upload:2000000}]},1000);
+  const result=counter.snapshot();assert.equal(result.totalReceived,0);assert.equal(result.totalSent,0);assert.equal(result.processes[0].connectionCount,0);
+  assert.equal(result.status,'unmapped');assert.equal(result.receivedPerSecond,null);assert.equal(result.sentPerSecond,null);
+ }
+});
+
+test('unknown protocols stay unattributed instead of being guessed as TCP',()=>{
+ for(const network of [undefined,null,'','quic',17]){
+  const {counter,advance}=fixture();const unknown=connection('unknown',0,0,5000,{network,inboundIP:'',inboundPort:0});
+  counter.accept(os,{connections:[unknown]},0);advance(1000);counter.accept(os,{connections:[{...unknown,download:1000,upload:2000}]},1000);
+  assert.equal(counter.snapshot().totalReceived,0);assert.equal(counter.snapshot().processes[0].connectionCount,0);assert.equal(counter.snapshot().receivedPerSecond,null);
+ }
+});
+
+test('mixed TCP and UDP on one source endpoint retain only legitimate TCP bytes',()=>{
+ const {counter,advance}=fixture();const udp=connection('udp',1000000,2000000,5000,{network:'udp',type:'Tun',inboundIP:'',inboundPort:0});
+ counter.accept(os,{connections:[connection('tcp',100,200,5000,{network:'TCP'}),udp]},0);advance(1000);
+ counter.accept(os,{connections:[connection('tcp',1100,2200,5000,{network:'TCP'}),{...udp,download:9000000,upload:9000000}]},1000);
+ const result=counter.snapshot();assert.equal(result.totalReceived,1000);assert.equal(result.totalSent,2000);assert.equal(result.receivedPerSecond,1000);assert.equal(result.sentPerSecond,2000);assert.equal(result.processes[0].connectionCount,1);assert.equal(result.processes[0].totalReceived,1000);
+});
+
+test('cached connection identity and a Codex process label cannot bypass protocol validation',()=>{
+ const {counter,advance}=fixture();counter.accept(os,{connections:[connection('cached',100,200)]},0);advance(1000);
+ counter.accept(os,{connections:[connection('cached',1000000,2000000,5000,{network:'udp',process:'codex.exe'})]},1000);
+ const result=counter.snapshot();assert.equal(result.totalReceived,0);assert.equal(result.totalSent,0);assert.equal(result.processes[0].connectionCount,0);assert.equal(result.receivedPerSecond,null);
 });
 test('inbound endpoint disambiguates a reused source port and IPv4-mapped addresses match',()=>{
  const {counter,advance}=fixture(),both={processes:[proc],sockets:[socket,{...socket,remotePort:7898}]};

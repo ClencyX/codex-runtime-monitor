@@ -5,7 +5,7 @@ import path from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {spawn} from 'node:child_process';
 import {DatabaseSync} from 'node:sqlite';
-import {blankState,SessionTail,discoverSessions,visibleSessions} from './monitor-core.mjs';
+import {blankState,SessionTail,discoverSessions,visibleSessions,latestStartedSession} from './monitor-core.mjs';
 import {NetworkMonitor} from './network.mjs';
 import {NetworkHistory} from './network-history.mjs';
 import {QuotaMonitor} from './quota.mjs';
@@ -26,6 +26,11 @@ const networkHistory=new NetworkHistory();
 const quota=new QuotaMonitor(home,{live:process.env.CODEX_MONITOR_QUOTA_DISABLED!=='1'&&process.env.CODEX_MONITOR_NETWORK_DISABLED!=='1'});
 const historyTimer=setInterval(()=>networkHistory.capture(network.snapshot()),1000);
 function discover(){const found=discoverSessions(home);if(found.length){sessions=found;discoveryError=null;}else discoveryError='未找到可读取的 Codex 会话';lastDiscovery=Date.now();}
+function latestNormalSession(){
+ const starts=quota.sessionStarts();
+ for(const known of [state,...Array.from(sessionContexts.values(),context=>context.state)])if(Number.isFinite(known?.startedAt))starts.set(known.id,Math.max(starts.get(known.id)??-Infinity,known.startedAt));
+ return latestStartedSession(sessions,starts);
+}
 function select(id){
  const entry=sessions.find(x=>x.id===id);if(!entry)return false;
  if(selectedId&&tail)sessionContexts.set(selectedId,{state,tail,lastDbId,dbRevision});
@@ -36,12 +41,13 @@ function select(id){
 function database(){
  if(db)return;
  try{const files=fs.readdirSync(home).filter(x=>/^logs_\d+\.sqlite$/.test(x)).sort((a,b)=>Number(b.match(/\d+/)[0])-Number(a.match(/\d+/)[0]));
-  if(!files.length)throw new Error('missing');db=new DatabaseSync(path.join(home,files[0]),{readOnly:true});db.exec('PRAGMA busy_timeout=50');hasLogNanos=db.prepare('PRAGMA table_info(logs)').all().some(column=>column.name==='ts_nanos');state.dbError=null;
+  if(!files.length){state.dbError='连接日志暂不可读；会话计时仍可用';return;}
+  db=new DatabaseSync(path.join(home,files[0]),{readOnly:true});db.exec('PRAGMA busy_timeout=50');hasLogNanos=db.prepare('PRAGMA table_info(logs)').all().some(column=>column.name==='ts_nanos');state.dbError=null;
  }catch{state.dbError='连接日志暂不可读；会话计时仍可用';}
 }
 function poll(){const before=performance.now();
  if(Date.now()-lastDiscovery>5000)discover();
- if(!state){const first=sessions.find(s=>!s.isGuardianReview);if(first)select(first.id);}
+ if(!state){const first=latestNormalSession();if(first)select(first.id);}
  quota.poll(sessions,selectedId).catch(()=>{});
  if(tail){tail.poll();const entry=sessions.find(x=>x.id===selectedId);if(entry)state.title=entry.title;
   tail.flushLogs();database();if(db){try{
@@ -86,7 +92,7 @@ const server=http.createServer((req,res)=>{
  }
  if(req.method==='GET'&&url.pathname==='/api/state'){
   const includeInternal=url.searchParams.get('includeInternal')==='1';
-  const choices=visibleSessions(sessions,includeInternal),latestNormal=sessions.find(s=>!s.isGuardianReview);
+  const latestNormal=latestNormalSession(),choices=visibleSessions(sessions,includeInternal,latestNormal?.id);
   const requested=url.searchParams.get('session');
   if(requested&&!sessions.some(s=>s.id===requested)){json(res,404,{error:'会话不存在'});return;}
   const desired=choices.find(s=>s.id===(requested||selectedId))||latestNormal||(includeInternal?choices[0]:null);
@@ -114,7 +120,7 @@ server.on('connection',socket=>{clients.add(socket);socket.on('close',()=>client
 function openWindow(url){
  if(process.platform==='win32'){
   const edge=[process.env['PROGRAMFILES(X86)'],process.env.PROGRAMFILES].filter(Boolean).map(x=>path.join(x,'Microsoft','Edge','Application','msedge.exe')).find(x=>fs.existsSync(x));
-  const child=edge?spawn(edge,[`--app=${url}`,'--window-size=530,930'],{detached:true,stdio:'ignore',windowsHide:false}):spawn('powershell.exe',['-NoProfile','-Command',`Start-Process '${url}'`],{detached:true,stdio:'ignore',windowsHide:true});child.unref();
+  const child=edge?spawn(edge,[`--app=${url}`,'--window-size=538,930'],{detached:true,stdio:'ignore',windowsHide:false}):spawn('powershell.exe',['-NoProfile','-Command',`Start-Process '${url}'`],{detached:true,stdio:'ignore',windowsHide:true});child.unref();
  }else console.log(`Open ${url}`);
 }
 function shutdown(){if(closing)return;closing=true;updates.stop();clearInterval(timer);clearInterval(historyTimer);network.stop();quota.stop();try{db?.close();}catch{}for(const socket of clients)socket.destroy();server.close(()=>process.exit(0));setTimeout(()=>process.exit(0),800).unref();}

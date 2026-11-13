@@ -2,7 +2,7 @@
 
 **English** · [简体中文](README.zh-CN.md)
 
-**v0.1.5** · Windows · No npm dependencies · [Changelog](CHANGELOG.md) · [MIT](LICENSE)
+**v0.1.6** · Windows · No npm dependencies · [Changelog](CHANGELOG.md) · [MIT](LICENSE)
 
 **When Codex keeps showing “Thinking,” see what was actually recorded while you waited.**
 
@@ -19,6 +19,10 @@ A local dashboard for Codex task timing, tool calls, connection retries, proxy t
 I started this project after unstable network conditions made me question Codex's response speed. The interface kept showing that it was thinking, but I could not easily tell how long I had waited, whether new activity was arriving, or whether connections were being retried.
 
 I wanted a small window beside PyCharm or another Codex client that could independently read local records and put those clues together. The monitor helps investigate a delay; it does not automatically attribute one to a mobile hotspot, proxy, remote service, model processing or tool execution.
+
+## A note from the author
+
+I am a university graduate who has just started working at a state-owned enterprise. It was only after I started working that I realized how many tasks I could use Codex to accomplish. Tools like Claude Code and Codex give everyone a great way to work, create, and pursue the things they enjoy. Since I plan to keep using Codex for the long term, I will also continue using and improving this simple Codex monitoring dashboard I have built. I hope everyone who comes across this project will support it. You can always get the latest version of this little tool, or clone the repository and adapt it to your own needs. Knowing that someone finds it useful is the greatest encouragement I could receive! Feedback and suggestions are always welcome!
 
 ## Quick start
 
@@ -100,7 +104,7 @@ Counters count log records, not necessarily independent network incidents. An ab
 
 [![Codex traffic: process selection, upload/download rates, observed totals and history chart](docs/images/traffic-en.png)](docs/images/traffic-en.png)
 
-Windows TCP ownership and local Mihomo statistics are matched to `codex.exe`. View upload/download rates, observed totals and **1 / 5 / 10 / 30-minute** history across all Codex processes or one PID. Process start times distinguish reused PIDs.
+Windows TCP/UDP endpoint ownership and local Mihomo statistics are matched to `codex.exe`. Protocol, local address and port are checked separately for TCP and UDP; confirmed Codex UDP traffic is included. Ambiguous shared UDP endpoints remain unattributed. View upload/download rates, observed totals and **1 / 5 / 10 / 30-minute** history across all Codex processes or one PID. Process start times distinguish reused PIDs.
 
 Blue represents downloads; orange represents uploads. Hover, or focus the chart and use arrow keys, to inspect samples. Moving the pointer away hides the tooltip. **Solid lines show measurements; dashed bridges cross missing samples and are not measured rates.** Unknown values are not filled with zero. History is retained for up to 30 minutes and starts again when the service restarts.
 
@@ -132,7 +136,7 @@ Comparison supports stable `major.minor.patch` versions. **A code patch under th
 | Feature | Source and network behavior |
 | --- | --- |
 | Sessions, activity, timing and plans | Incremental reads of local JSONL and read-only SQLite logs |
-| Proxy traffic | Windows TCP ownership and the local Mihomo named pipe; no proxy subscription access |
+| Proxy traffic | Windows TCP/UDP endpoint ownership and the local Mihomo named pipe; no proxy subscription access |
 | Official quota refresh | A short-lived Codex App Server subprocess uses the existing sign-in and `account/rateLimits/read` to query the official account service; no thread creation or model call |
 | Update check | User-triggered anonymous GET to `api.github.com/repos/ClencyX/codex-runtime-monitor/releases/latest`, reading public Release information |
 | Release and download links | Opened by the user in the browser, which then accesses GitHub |
@@ -148,7 +152,7 @@ The local interface returns session names, full task prompt titles, working dire
 ```mermaid
 flowchart LR
     A[Local JSONL and read-only SQLite] --> D[Local Node.js service]
-    B[Windows TCP and local Mihomo] --> D
+    B[Windows TCP/UDP and local Mihomo] --> D
     C[Installed Codex reads official quota] --> D
     G[Public GitHub release information] -->|Manual check only| D
     D -->|127.0.0.1| E[Browser dashboard]

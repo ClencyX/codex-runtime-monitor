@@ -31,7 +31,7 @@ export async function startDemo(){
   if(u.pathname==='/demo/config'){language=u.searchParams.get('lang')==='en'?'en':'zh-CN';returned=u.searchParams.get('returned')==='1';returnedAt=returned?Date.now():null;updateError=u.searchParams.get('updateError')==='1';return json({checks});}
   if(u.pathname==='/api/state')return json(snapshot());
   if(u.pathname==='/api/version')return json({version:fs.readFileSync(path.join(root,'VERSION'),'utf8').trim()});
-  if(u.pathname==='/api/update/check'){checks++;return json(updateError?{ok:false,error:'timeout'}:{ok:true,current:fs.readFileSync(path.join(root,'VERSION'),'utf8').trim(),latest:'v0.1.6',comparison:1,publishedAt:'2026-11-10T00:00:00Z',url:'https://github.com/ClencyX/codex-runtime-monitor/releases/latest'});}
+  if(u.pathname==='/api/update/check'){checks++;return json(updateError?{ok:false,error:'timeout'}:{ok:true,current:fs.readFileSync(path.join(root,'VERSION'),'utf8').trim(),latest:'v0.1.7',comparison:1,publishedAt:'2026-11-10T00:00:00Z',url:'https://github.com/ClencyX/codex-runtime-monitor/releases/latest'});}
   if(u.pathname==='/api/network-history'){
    const now=Date.now(),range=Number(u.searchParams.get('range'))||600;const points=Array.from({length:601},(_,i)=>({seq:i,at:now-600000+i*1000,receivedPerSecond:i>=310&&i<=330?null:12000+16000*Math.abs(Math.sin(i*.018))+6000*Math.abs(Math.sin(i*.13)),sentPerSecond:i>=310&&i<=330?null:1800+4000*Math.abs(Math.cos(i*.026)),partial:false}));
    return json({scope:'codex-proxy',status:'ready',epoch:'demo',reset:true,seq:600,serverNow:now,rangeSeconds:range,processId:u.searchParams.get('process')||'',points});

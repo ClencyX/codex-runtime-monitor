@@ -59,6 +59,20 @@ test('hovering dashed regions never invents a rate or snaps onto a measured endp
  const gap=inspectPoint(points,1800);assert.equal(gap.bridged,true);assert.equal(gap.point,null);assert.equal(gap.at,1800);
  const endpoint=inspectPoint(points,1000);assert.equal(endpoint.bridged,false);assert.equal(endpoint.point.receivedPerSecond,100);
 });
+
+test('dashed bridges stop above ten seconds independently in each direction',()=>{
+ const p=(at,down,up=down)=>({at,receivedPerSecond:down,sentPerSecond:up});
+ for(const gap of [9999,10000,10001,60000]){
+  const points=[p(0,0),p(gap,50)];
+  assert.equal(gapBridges(points,'receivedPerSecond').length,gap<=10000?1:0);
+  assert.equal(inspectPoint(points,gap/2).bridged,gap<=10000);
+  assert.equal(inspectPoint(points,gap/2).point,null);
+ }
+ const points=[p(0,0,10),p(5000,20,null),p(10001,40,30)];
+ assert.equal(gapBridges(points,'receivedPerSecond').length,2);
+ assert.equal(gapBridges(points,'sentPerSecond').length,0);
+ assert.equal(inspectPoint(points,5000).point.receivedPerSecond,20);
+});
 test('upload and download bridges are independent and preserve the other measured direction',()=>{
  const points=[{at:1000,receivedPerSecond:0,sentPerSecond:1},{at:2000,receivedPerSecond:20,sentPerSecond:null},{at:3000,receivedPerSecond:40,sentPerSecond:3}];
  assert.equal(gapBridges(points,'receivedPerSecond').length,0);assert.equal(gapBridges(points,'sentPerSecond').length,1);

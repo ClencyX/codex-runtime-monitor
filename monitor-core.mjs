@@ -64,7 +64,7 @@ function completeItem(s,p,item,at,name,kind,duration,startedAt,endedAt,metadata)
 }
 
 function beginCall(s,p,at,metadata){
- const id=p.call_id??p.id,label=labelFor(p.name,p.input||p.arguments||'');
+ const id=p.call_id??p.id,label=labelFor(p.name);
  if(id===undefined||id===null||id===''){
   const event=addEvent(s,at,label+'（调用标识缺失）','tool');Object.assign(event,{operation:true,status:'unknown'});return;
  }
@@ -123,7 +123,7 @@ function endTask(s,at,cause=null,endKnown=true){
  if(cause)Object.assign(event,{terminationCode:cause.code,terminationReason:cause.reason});
  activity(s,at,label);
 }
-function labelFor(name='',input=''){
+function labelFor(name=''){
  if(name==='exec')return '组合调用';
  if(/exec_command|commandExecution/i.test(name))return '本地命令';
  if(/write_stdin|wait_cell|wait$/i.test(name))return '等待工具结果';
@@ -327,8 +327,18 @@ function guardianSession(file){
   classificationCache.set(file,internal);return internal;
  }catch{return false;}finally{if(fd!==undefined)fs.closeSync(fd);}
 }
-export function visibleSessions(sessions,includeInternal=false){
+// Only recorded task starts determine automatic following; log writes are not task starts.
+export function latestStartedSession(sessions,starts){
+ let latest=null,latestAt=-Infinity;
+ for(const session of sessions){
+  const at=starts.get(session.id);if(session.isGuardianReview||!Number.isFinite(at))continue;
+  if(at>latestAt||latest&&at===latestAt&&session.id<latest.id){latest=session;latestAt=at;}
+ }return latest;
+}
+export function visibleSessions(sessions,includeInternal=false,pinnedId=null){
  const normal=sessions.filter(s=>!s.isGuardianReview).slice(0,50);
+ const pinned=sessions.find(s=>s.id===pinnedId&&!s.isGuardianReview);
+ if(pinned&&!normal.some(s=>s.id===pinnedId)){normal.pop();normal.unshift(pinned);}
  if(!includeInternal)return normal;
  // Internal entries cannot crowd normal chats out of the selector.
  return [...normal,...sessions.filter(s=>s.isGuardianReview).slice(0,50)].sort((a,b)=>b.mtime-a.mtime);

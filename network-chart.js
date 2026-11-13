@@ -22,9 +22,9 @@
   const candidates=[points[low-1],points[low]].filter(Boolean).sort((a,b)=>Math.abs(a.at-at)-Math.abs(b.at-at));
   return candidates.length&&Math.abs(candidates[0].at-at)<=tolerance?candidates[0]:null;
  }
- function gapBridges(points,field,gap=2500){
+ function gapBridges(points,field,gap=2500,maxBridgeMs=10000){
   const lines=segments(points,field,gap),bridges=[];
-  for(let i=1;i<lines.length;i++){const before=lines[i-1].at(-1),after=lines[i][0];if(before.at<after.at)bridges.push([before,after]);}
+  for(let i=1;i<lines.length;i++){const before=lines[i-1].at(-1),after=lines[i][0];if(before.at<after.at&&after.at-before.at<=maxBridgeMs)bridges.push([before,after]);}
   return bridges;
  }
  function inspectPoint(points,at,bridges){

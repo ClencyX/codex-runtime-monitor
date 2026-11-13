@@ -2,7 +2,7 @@
 
 [English](README.md) · **简体中文**
 
-**v0.1.5** · Windows · 无 npm 依赖 · [更新记录](CHANGELOG.md) · [MIT](LICENSE)
+**v0.1.6** · Windows · 无 npm 依赖 · [更新记录](CHANGELOG.md) · [MIT](LICENSE)
 
 **Codex 一直显示“正在思考”时，看看这段等待期间实际记录了什么。**
 
@@ -21,6 +21,10 @@
 在网络条件不稳定的环境中使用 Codex 时，我遇到过回复明显变慢的情况。界面持续显示“正在思考”，但我很难直观看出自己已经等了多久、期间是否有新活动，以及连接有没有发生重试。
 
 我希望在 PyCharm 或其他 Codex 客户端旁边放一个小窗口，独立读取本地记录，把这些线索集中起来。因此有了这个工具。它帮助观察和排查，但不会直接判定延迟来自手机热点、网络代理、远端服务、模型处理或工具执行中的哪一项。
+
+## 声明
+
+我是一个刚刚加入国企工作的大学生，参加工作了以后才发现许多的工作可以使用Codex也能做到用Codex完成。Claude Code和Codex这类工具给了所有人无论是工作还是创造还是做自己喜欢的事一种很好的工具。因为我今后也会长期使用Codex，进而我会持续使用和改进我目前开发的这款简易版本的Codex监控台。所以我希望走过路过的大家多多支持一下我的项目，大家可以随时获取我最新更新的这款小工具，也可以克隆仓库并改进为适合自己用的工具，只要有人能用得上就是对我最大的鼓励！欢迎大家提出意见！
 
 ## 快速开始
 
@@ -102,7 +106,7 @@ node --disable-warning=ExperimentalWarning server.mjs --open
 
 [![Codex 流量：进程选择、上传下载速率、已观测累计和趋势图](docs/images/traffic-zh.png)](docs/images/traffic-zh.png)
 
-通过 Windows TCP 连接归属与本机 Mihomo 统计匹配 `codex.exe`，展示上传下载速率、已观测累计和最近 **1 / 5 / 10 / 30 分钟**趋势。支持全部进程或单个 PID，使用进程启动时间区分 PID 复用。
+通过 Windows TCP/UDP 端点归属与本机 Mihomo 统计匹配 `codex.exe`，分别按协议、本地地址和端口匹配，确认属于 Codex 的 UDP 流量正常计入；共享 UDP 端口无法唯一确认归属时不猜测。展示上传下载速率、已观测累计和最近 **1 / 5 / 10 / 30 分钟**趋势。支持全部进程或单个 PID，使用进程启动时间区分 PID 复用。
 
 蓝色为下载，橙色为上传；悬停或聚焦后使用方向键查看样本，鼠标离开后隐藏浮层。**实线表示实测，虚线跨接缺失区间，虚线本身不是实测速率。**未知值不会填成零。历史最多保留 30 分钟，服务重启后重新积累。
 
@@ -134,7 +138,7 @@ node --disable-warning=ExperimentalWarning server.mjs --open
 | 功能 | 数据来源与联网行为 |
 | --- | --- |
 | 会话、活动、计时与计划 | 增量读取本地 JSONL，以及只读 SQLite 日志 |
-| 代理流量 | Windows TCP 归属及本机 Mihomo 命名管道统计，不访问代理订阅 |
+| 代理流量 | Windows TCP/UDP 端点归属及本机 Mihomo 命名管道统计，不访问代理订阅 |
 | 官方额度刷新 | 启动短时 Codex App Server 子进程，通过 `account/rateLimits/read` 使用已有登录态查询官方账户服务；不创建对话、不调用模型 |
 | 检查更新 | 用户点击后匿名 GET `api.github.com/repos/ClencyX/codex-runtime-monitor/releases/latest`，读取公开 Release 信息 |
 | 发布页与下载链接 | 用户打开后由浏览器访问 GitHub |
@@ -150,7 +154,7 @@ node --disable-warning=ExperimentalWarning server.mjs --open
 ```mermaid
 flowchart LR
     A[本地 JSONL 与只读 SQLite] --> D[本地 Node.js 服务]
-    B[Windows TCP 与本机 Mihomo] --> D
+    B[Windows TCP/UDP 与本机 Mihomo] --> D
     C[已安装 Codex 查询官方额度] --> D
     G[GitHub 公开版本信息] -->|仅手动检查| D
     D -->|127.0.0.1| E[浏览器监控窗口]

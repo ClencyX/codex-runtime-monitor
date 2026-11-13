@@ -62,6 +62,17 @@ test('an official correction anywhere within a turn invalidates subtraction even
 test('user titles are bounded, injected context is skipped and metadata does not expose tool arguments',()=>{
  const f=fixture();f.put(begin('one',1000));f.put(rec('response_item',{type:'message',role:'user',content:'# AGENTS.md instructions PRIVATE_CONTEXT'},1100));f.put(rec('response_item',{type:'message',role:'user',content:'User task '+ 'a'.repeat(500)},1200));f.put(rec('response_item',{type:'function_call',name:'exec',arguments:'PRIVATE_COMMAND'},1300));const q=f.snapshot();assert.equal(q.rounds[0].title.length,240);assert.doesNotMatch(JSON.stringify(q),/PRIVATE_CONTEXT|PRIVATE_COMMAND/);
 });
+
+test('mixed or missing message blocks do not prevent a later user title from being recorded',()=>{
+ for(const type of ['response_item','event_msg']){
+  const f=fixture();f.put(begin('one',1000));
+  const message=content=>rec(type,type==='response_item'?{type:'message',role:'user',content}:{type:'user_message',message:content},1100);
+  for(const content of [null,undefined,{},[null,{},undefined]])assert.doesNotThrow(()=>f.put(message(content)));
+  f.put(message([null,{type:'input_text',text:'Inspect'},{type:'image',image_url:'PRIVATE_IMAGE'},{text:'quota'},null]));
+  assert.equal(f.snapshot('a').rounds[0].title,'Inspect quota');
+  assert.doesNotMatch(JSON.stringify(f.snapshot('a')),/PRIVATE_IMAGE/);
+ }
+});
 test('reset countdown boundaries and stale balances retain their honest state',()=>{
  const f=fixture();f.put(sample(23,78,0));f.clock(200000);assert.equal(f.snapshot().windows.fiveHour.status,'stale');f.clock(18000000);assert.equal(f.snapshot().windows.fiveHour.status,'reset-pending');
 });
@@ -77,6 +88,24 @@ test('selecting a large chat backfills bounded history once without ending an ex
 });
 test('manual refresh shares an in-flight query, records official windows, and survives errors',async()=>{
  let resolve,calls=0,now=base;const reader={read(){calls++;return new Promise(r=>resolve=r);},stop(){}};const monitor=new QuotaMonitor('unused',{now:()=>now,reader});const a=monitor.refresh(),b=monitor.refresh();assert.equal(calls,1);resolve({rateLimits:limits(24,79)});assert.equal(await a,true);await b;assert.equal(monitor.snapshot().windows.weekly.remainingPercent,21);reader.read=async()=>{throw Error('PRIVATE_ERROR')};assert.equal(await monitor.refresh(),false);assert.equal(monitor.snapshot().refreshError,'unavailable');assert.doesNotMatch(JSON.stringify(monitor.snapshot()),/PRIVATE_ERROR/);monitor.stop();
+});
+
+test('an invalid official quota response preserves the last balance and permits a later refresh',async()=>{
+ let now=base,response={rateLimits:limits(24,79)};
+ const reader={read:async()=>response,stop(){}};
+ const monitor=new QuotaMonitor('unused',{now:()=>now,reader});
+ try{
+  assert.equal(await monitor.refresh(),true);const refreshedAt=monitor.snapshot().refreshAt;
+  for(const invalid of [undefined,null,{}, {rateLimits:{}},{rateLimits:null}]){
+   now+=1000;response=invalid;
+   assert.equal(await monitor.refresh(),false);const q=monitor.snapshot();
+   assert.equal(q.refreshError,'unavailable');assert.equal(q.refreshing,false);
+   assert.equal(q.refreshAt,refreshedAt);assert.equal(q.windows.fiveHour.remainingPercent,76);
+  }
+  now+=1000;response={rateLimitsByLimitId:{codex:limits(25,80)}};
+  assert.equal(await monitor.refresh(),true);const recovered=monitor.snapshot();
+  assert.equal(recovered.refreshError,null);assert.equal(recovered.windows.fiveHour.remainingPercent,75);
+ }finally{monitor.stop();}
 });
 function fakeSpawn({reply=true,error=false}={}){const methods=[];let process;
  return {methods,get child(){return process;},spawn(){process=new EventEmitter();process.exitCode=null;process.stdout=new PassThrough();process.kill=()=>{process.exitCode=0;process.emit('close',0);};process.stdin=new Writable({write(chunk,encoding,done){const m=JSON.parse(String(chunk));methods.push(m.method);if(reply&&m.id!==undefined)queueMicrotask(()=>process.stdout.write(JSON.stringify({id:m.id,...(error?{error:{code:-1,message:'PRIVATE'}}:{result:m.id===0?{}:{rateLimits:limits(24,79)}})})+'\n'));done();},final(done){process.exitCode=0;process.emit('close',0);done();}});return process;}};
@@ -108,7 +137,7 @@ test('both quota warnings appear strictly below ten percent and clear independen
 test('server exposes selected round records, protects refresh and removes the former rate-reset endpoint',async()=>{
  const dir=fs.mkdtempSync(path.join(os.tmpdir(),'quota-records-server-'));let child;const id='aaaaaaaa-1111-2222-3333-bbbbbbbbbbbb';fs.mkdirSync(path.join(dir,'sessions'));fs.writeFileSync(path.join(dir,'sessions','rollout-'+id+'.jsonl'),JSON.stringify(begin('one',0))+'\n');
  try{child=spawn(process.execPath,['--disable-warning=ExperimentalWarning',path.join(import.meta.dirname,'server.mjs'),'--port','0'],{env:{...process.env,CODEX_MONITOR_HOME:dir,CODEX_MONITOR_NETWORK_DISABLED:'1'},stdio:['ignore','pipe','pipe'],windowsHide:true});const origin=await new Promise((resolve,reject)=>{const timer=setTimeout(()=>reject(Error('timeout')),8000);child.stdout.on('data',b=>{const m=b.toString().match(/"url":"([^"]+)"/);if(m){clearTimeout(timer);resolve(m[1].replace(/\/$/,''));}});child.once('exit',()=>{clearTimeout(timer);reject(Error('early exit'));});});
-  const state=await(await fetch(origin+'/api/state?session='+id)).json();assert.equal(state.quota.scope,'account-quota-observed-turns');assert.equal((await fetch(origin+'/api/quota/reset',{method:'POST'})).status,404);assert.equal((await fetch(origin+'/api/quota/refresh',{method:'POST',headers:{Origin:'https://other.example','X-Monitor-Action':'refresh-quota'}})).status,403);const response=await fetch(origin+'/api/quota/refresh',{method:'POST',headers:{Origin:origin,'X-Monitor-Action':'refresh-quota'}});assert.ok([202,429].includes(response.status));
+  const state=await(await fetch(origin+'/api/state?session='+id)).json();assert.equal(state.quota.scope,'account-quota-observed-turns');assert.equal(state.state.dbError,'连接日志暂不可读；会话计时仍可用');assert.equal((await fetch(origin+'/api/quota/reset',{method:'POST'})).status,404);assert.equal((await fetch(origin+'/api/quota/refresh',{method:'POST',headers:{Origin:'https://other.example','X-Monitor-Action':'refresh-quota'}})).status,403);const response=await fetch(origin+'/api/quota/refresh',{method:'POST',headers:{Origin:origin,'X-Monitor-Action':'refresh-quota'}});assert.ok([202,429].includes(response.status));
   await fetch(origin+'/api/shutdown',{method:'POST',headers:{Origin:origin,'X-Monitor-Action':'shutdown'}});await new Promise(r=>child.exitCode!==null?r():child.once('exit',r));
  }finally{if(child&&child.exitCode===null){child.kill();await new Promise(r=>child.once('exit',r));}fs.rmSync(dir,{recursive:true,force:true,maxRetries:3,retryDelay:50});}
 });

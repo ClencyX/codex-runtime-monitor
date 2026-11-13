@@ -25,7 +25,7 @@ try{
  for(const [language,theme,suffix] of [['zh-CN','light','zh'],['en','dark','en']]){
   await fetch(demo.url+'/demo/config?lang='+language);await send('Page.navigate',{url:demo.url});await waitFor('!!globalThis.CodexMonitorI18n');
   await run(`localStorage.clear();sessionStorage.clear();localStorage.setItem('codex-monitor-language',${JSON.stringify(language)});localStorage.setItem('codex-monitor-theme',${JSON.stringify(theme)});`);
-  await send('Page.reload');await waitFor(`document.getElementById('status')?.textContent===${JSON.stringify(language==='en'?'Running':'运行中')}&&document.querySelector('.traffic-line')?.getAttribute('d')?.length>10`);
+  await send('Page.reload');await waitFor(`document.getElementById('status')?.textContent===${JSON.stringify(language==='en'?'Running':'运行中')}&&document.querySelector('.traffic-line:not(.traffic-gap)')?.getAttribute('d')?.length>10`);
   await run(`document.querySelector('#retries-toggle').click();for(const b of document.querySelectorAll('#events .event-toggle'))if(b.getAttribute('aria-expanded')==='false')b.click();`);await sleep(150);
   assert.equal(demo.checks,language==='en'?2:0,'page load must not check updates');
   const overflow=await run('({page:document.documentElement.scrollWidth>innerWidth,panels:[...document.querySelectorAll(".panel")].filter(n=>!n.hidden).length})');assert.equal(overflow.page,false);assert.equal(overflow.panels,7);
