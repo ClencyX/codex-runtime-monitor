@@ -4,6 +4,8 @@ import os from 'node:os';
 import {spawn} from 'node:child_process';
 import readline from 'node:readline';
 
+const appVersion=fs.readFileSync(new URL('./VERSION',import.meta.url),'utf8').trim();
+
 export function findCodex(env=process.env){
  if(env.CODEX_MONITOR_CODEX_BIN&&fs.existsSync(env.CODEX_MONITOR_CODEX_BIN))return env.CODEX_MONITOR_CODEX_BIN;
  const exe=process.platform==='win32'?'codex.exe':'codex';for(const folder of (env.PATH||'').split(path.delimiter)){const file=path.join(folder,exe);try{if(fs.statSync(file).isFile())return file;}catch{}}
@@ -27,7 +29,7 @@ export class QuotaReader{
     if(m.id===0){if(m.error||!m.result){finish('unavailable');return;}send({method:'initialized',params:{}});send({method:'account/rateLimits/read',id:1});}
     if(m.id===1)finish(m.error?'unavailable':null,m.result);
    });timer=setTimeout(()=>finish('timeout'),this.timeoutMs);
-   send({method:'initialize',id:0,params:{clientInfo:{name:'codex_runtime_monitor',version:'0.1.6'}}});
+   send({method:'initialize',id:0,params:{clientInfo:{name:'codex_runtime_monitor',version:appVersion}}});
   }).finally(()=>{this.pending=null;this.cancel=null;this.child=null;});return this.pending;
  }
  stop(){const child=this.child;this.cancel?.();if(child&&child.exitCode===null)child.kill();}

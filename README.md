@@ -2,7 +2,7 @@
 
 **English** · [简体中文](README.zh-CN.md)
 
-**v0.1.6** · Windows · No npm dependencies · [Changelog](CHANGELOG.md) · [MIT](LICENSE)
+**v0.1.7** · Windows · No npm dependencies · [Changelog](CHANGELOG.md) · [MIT](LICENSE)
 
 **When Codex keeps showing “Thinking,” see what was actually recorded while you waited.**
 
@@ -88,9 +88,9 @@ See 5-hour and weekly remaining balances, progress bars, reset countdowns and up
 
 The collapsed summary retains **this turn's usage, the last turn's usage and both balance rings**. Without a 5-hour window, the turn summaries use weekly quota.
 
-Quota combines local snapshots with official account reads. The first query follows initial collection; subsequent automatic attempts are at least 60 seconds apart. **Refresh quota** has a 5-second cooldown and shares in-flight requests. On failure, the last snapshot remains visible with a notice.
+Quota combines local snapshots with official account reads. Routine checks run about once a minute. New turns also request a reading at the start and end. Automatic requests share in-flight work and are spaced at least three seconds apart. **Refresh quota** has a five-second cooldown.
 
-Up to 100 recent turns in the selected session show **account snapshot differences**, not exact per-turn billing. Concurrent sessions and other devices may contribute. Missing or stale boundaries, incomplete collection and reset crossings remain unknown. `0%` means no observed percentage-point change, not zero usage.
+The selected session shows up to 100 turns of **observed account usage**. Other sessions and devices may contribute. New turns track the 5-hour and weekly windows independently and add the observed portions across resets. `0%` means two readings showed no percentage-point change. An asterisk marks partial coverage, a post-completion reading or a correction. Hover for details. “Sampling…” waits for evidence and `—` indicates insufficient data. The activation time and eight days of readings and turn boundaries are kept locally under `cache/codex-runtime-monitor/quota-v2/` in the Codex home directory.
 
 ### Connection retries, failures and transport fallbacks
 

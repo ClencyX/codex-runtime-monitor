@@ -23,3 +23,18 @@ test('every valid movement preserves all panels once and never mutates the origi
 test('unknown or identical drag targets leave the layout unchanged',()=>{
  for(const [id,target] of [['task-panel','task-panel'],['sessions','quota-panel'],['quota-panel','footer']])assert.deepEqual(plain(moveOrder(defaults,id,target)),defaults);
 });
+
+test('adjusting visible panels skips the task steps row and preserves its saved slot',()=>{
+ const {PanelOrder}=context.CodexMonitorPanelOrder;
+ const view=Object.create(PanelOrder.prototype);
+ view.order=['quota-panel','plan-panel','activity-panel','task-panel'];
+ view.handles=new Map(view.order.filter(id=>id!=='plan-panel').map(id=>[id,{}]));
+ view.setOrder=order=>{view.order=order;};view.announce=()=>{};
+ assert.deepEqual(plain(view.editableOrder()),['quota-panel','activity-panel','task-panel']);
+ view.shift('activity-panel',-1);
+ assert.deepEqual(plain(view.order),['activity-panel','plan-panel','quota-panel','task-panel']);
+ view.shift('plan-panel',1);
+ assert.equal(view.order[1],'plan-panel');
+ view.setEditableOrder(moveOrder(view.editableOrder(),'task-panel','activity-panel',false));
+ assert.deepEqual(plain(view.order),['task-panel','plan-panel','activity-panel','quota-panel']);
+});

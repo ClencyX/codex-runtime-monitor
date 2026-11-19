@@ -1,5 +1,13 @@
 # Changelog / 更新记录
 
+## v0.1.7 — 2026-11-19
+
+- Fixed incorrect or missing per-turn account quota consumption for the 5-hour and weekly windows.
+- Fixed the default window width so the dashboard opens at its full content width.
+
+- 修复每轮 5 小时和周额度消耗统计不准确或缺失的问题。
+- 修复默认窗口宽度，使监控打开时能完整显示功能面板的最大宽度。
+
 ## v0.1.6 — 2026-11-13
 
 - Improved Codex TCP/UDP traffic attribution and fixed cases where unrelated UDP traffic could be counted as Codex traffic.

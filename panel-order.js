@@ -18,13 +18,14 @@
    try{this.order=normalizeOrder(JSON.parse(saved||'null'),this.defaults);}catch{this.order=[...this.defaults];}
    this.apply();
    for(const [id,panel] of this.panels){
+    if(id==='plan-panel')continue;
     const handle=doc.createElement('button');handle.type='button';handle.className='panel-drag-handle';handle.textContent='⠿';handle.draggable=true;handle.hidden=true;handle.setAttribute('data-panel-id',id);
     handle.addEventListener('dragstart',event=>this.startDrag(event,id));handle.addEventListener('dragend',()=>this.endDrag());
     handle.addEventListener('keydown',event=>{if(!this.editing||!['ArrowUp','ArrowDown'].includes(event.key))return;event.preventDefault();this.shift(id,event.key==='ArrowUp'?-1:1);handle.focus({preventScroll:true});});
     panel.querySelector('.panel-heading').prepend(handle);this.handles.set(id,handle);
    }
    this.toggle.addEventListener('click',()=>this.setEditing(!this.editing));
-   this.reset.addEventListener('click',()=>{this.setOrder(this.defaults,true);this.announce('已恢复默认顺序');});
+   this.reset.addEventListener('click',()=>{this.setEditableOrder(this.editableOrder(this.defaults));this.announce('已恢复默认顺序');});
    this.stack.addEventListener('dragover',event=>this.dragOver(event,this.targetPanel(event)));
    this.stack.addEventListener('drop',event=>this.drop(event,this.targetPanel(event)));
    this.list.addEventListener('dragover',event=>this.dragOver(event,event.target.closest('[data-panel-id]')));
@@ -45,12 +46,22 @@
   }
   setOrder(order,persist=true){
    this.order=normalizeOrder(order,this.defaults);this.apply();
-   if(persist)try{if(!this.storage)throw Error();this.storage.setItem(storageKey,JSON.stringify(this.order));this.canSave=true;}catch{this.canSave=false;}
+   if(persist){
+    try{
+     this.storage?.setItem(storageKey,JSON.stringify(this.order));
+     this.canSave=Boolean(this.storage);
+    }catch{this.canSave=false;}
+   }
    this.render();
   }
+  editableOrder(order=this.order){return order.filter(id=>this.handles.has(id));}
+  setEditableOrder(editable){
+   let index=0;
+   this.setOrder(this.order.map(id=>this.handles.has(id)?editable[index++]:id));
+  }
   shift(id,direction){
-   const index=this.order.indexOf(id),target=this.order[index+direction];if(!target)return;
-   this.setOrder(moveOrder(this.order,id,target,direction>0));this.announce('模块顺序已更新');
+   const editable=this.editableOrder(),index=editable.indexOf(id),target=editable[index+direction];if(index<0||!target)return;
+   this.setEditableOrder(moveOrder(editable,id,target,direction>0));this.announce('模块顺序已更新');
   }
   setEditing(value){this.editing=value;this.endDrag();this.render();}
   render(){
@@ -58,28 +69,29 @@
    this.settings.hidden=!this.editing;this.toggle.setAttribute('aria-expanded',String(this.editing));this.toggle.textContent=this.t(this.editing?'完成排序':'调整顺序');this.stack.classList.toggle('is-sorting',this.editing);
    this.note.textContent=this.t(this.canSave?'拖动列表或模块手柄调整顺序，也可使用上移、下移。顺序自动保存。':'无法保存到本机；本次窗口内仍可调整顺序。');
    for(const [id,handle] of this.handles){handle.hidden=!this.editing;handle.title=this.t('拖动调整顺序')+' · '+this.label(id);handle.setAttribute('aria-label',this.label(id)+' · '+this.t('拖动或使用上下方向键排序'));}
-   const rows=this.order.map((id,index)=>{
+   const editable=this.editableOrder(),defaults=this.editableOrder(this.defaults);
+   const rows=editable.map((id,index)=>{
     const li=this.doc.createElement('li');li.className='panel-order-item';li.draggable=true;li.dataset.panelId=id;
     const name=this.doc.createElement('span'),grip=this.doc.createElement('span');grip.textContent='⠿';grip.className='panel-order-grip';grip.setAttribute('aria-hidden','true');name.textContent=this.label(id);li.append(grip,name);
     const actions=this.doc.createElement('div');actions.className='panel-order-actions';
     for(const [direction,glyph,label] of [[-1,'↑','上移'],[1,'↓','下移']]){
-     const button=this.doc.createElement('button');button.type='button';button.textContent=glyph;button.dataset.direction=String(direction);button.title=this.t(label);button.setAttribute('aria-label',this.t(label)+' · '+this.label(id));button.disabled=direction===-1?index===0:index===this.order.length-1;
+     const button=this.doc.createElement('button');button.type='button';button.textContent=glyph;button.dataset.direction=String(direction);button.title=this.t(label);button.setAttribute('aria-label',this.t(label)+' · '+this.label(id));button.disabled=direction===-1?index===0:index===editable.length-1;
      button.addEventListener('click',()=>{this.shift(id,direction);const row=Array.from(this.list.children).find(node=>node.dataset.panelId===id);const next=row?.querySelector('[data-direction="'+direction+'"]');if(next&&!next.disabled)next.focus({preventScroll:true});else row?.querySelector('button:not(:disabled)')?.focus({preventScroll:true});});actions.appendChild(button);
     }li.appendChild(actions);li.addEventListener('dragstart',event=>this.startDrag(event,id));li.addEventListener('dragend',()=>this.endDrag());return li;
-   });this.list.replaceChildren(...rows);this.reset.disabled=this.order.every((id,index)=>id===this.defaults[index]);
+   });this.list.replaceChildren(...rows);this.reset.disabled=editable.every((id,index)=>id===defaults[index]);
   }
   targetPanel(event){const panel=event.target.closest('[data-collapsible]');return panel&&this.panels.has(panel.id)?panel:null;}
   startDrag(event,id){
-   if(!this.editing||!this.panels.has(id)){event.preventDefault();return;}this.dragging=id;
+   if(!this.editing||!this.handles.has(id)){event.preventDefault();return;}this.dragging=id;
    if(event.dataTransfer){event.dataTransfer.effectAllowed='move';event.dataTransfer.setData('text/plain',id);}this.panels.get(id).classList.add('panel-dragging');
   }
   dragOver(event,target){
-   const id=target?.dataset.panelId||target?.id;if(!this.editing||!this.dragging||!this.panels.has(id)||id===this.dragging)return;
+   const id=target?.dataset.panelId||target?.id;if(!this.editing||!this.dragging||!this.handles.has(id)||id===this.dragging)return;
    event.preventDefault();if(event.dataTransfer)event.dataTransfer.dropEffect='move';this.clearMarks();const rect=target.getBoundingClientRect();target.dataset.orderDrop=event.clientY>=rect.top+rect.height/2?'after':'before';
   }
   drop(event,target){
-   const id=target?.dataset.panelId||target?.id;if(!this.editing||!this.dragging||!this.panels.has(id))return;event.preventDefault();
-   const rect=target.getBoundingClientRect(),next=moveOrder(this.order,this.dragging,id,event.clientY>=rect.top+rect.height/2);this.endDrag();this.setOrder(next);this.announce('模块顺序已更新');
+   const id=target?.dataset.panelId||target?.id;if(!this.editing||!this.dragging||!this.handles.has(id))return;event.preventDefault();
+   const rect=target.getBoundingClientRect(),next=moveOrder(this.editableOrder(),this.dragging,id,event.clientY>=rect.top+rect.height/2);this.endDrag();this.setEditableOrder(next);this.announce('模块顺序已更新');
   }
   clearMarks(){for(const node of [...this.panels.values(),...this.list.children])delete node.dataset.orderDrop;}
   endDrag(){this.dragging=null;this.clearMarks();for(const panel of this.panels.values())panel.classList.remove('panel-dragging');}

@@ -23,7 +23,7 @@ const clients=new Set();
 const sessionContexts=new Map();
 const network=new NetworkMonitor();
 const networkHistory=new NetworkHistory();
-const quota=new QuotaMonitor(home,{live:process.env.CODEX_MONITOR_QUOTA_DISABLED!=='1'&&process.env.CODEX_MONITOR_NETWORK_DISABLED!=='1'});
+const quota=new QuotaMonitor(home,{persist:true,live:process.env.CODEX_MONITOR_QUOTA_DISABLED!=='1'&&process.env.CODEX_MONITOR_NETWORK_DISABLED!=='1'});
 const historyTimer=setInterval(()=>networkHistory.capture(network.snapshot()),1000);
 function discover(){const found=discoverSessions(home);if(found.length){sessions=found;discoveryError=null;}else discoveryError='未找到可读取的 Codex 会话';lastDiscovery=Date.now();}
 function latestNormalSession(){
@@ -120,7 +120,7 @@ server.on('connection',socket=>{clients.add(socket);socket.on('close',()=>client
 function openWindow(url){
  if(process.platform==='win32'){
   const edge=[process.env['PROGRAMFILES(X86)'],process.env.PROGRAMFILES].filter(Boolean).map(x=>path.join(x,'Microsoft','Edge','Application','msedge.exe')).find(x=>fs.existsSync(x));
-  const child=edge?spawn(edge,[`--app=${url}`,'--window-size=538,930'],{detached:true,stdio:'ignore',windowsHide:false}):spawn('powershell.exe',['-NoProfile','-Command',`Start-Process '${url}'`],{detached:true,stdio:'ignore',windowsHide:true});child.unref();
+  const child=edge?spawn(edge,[`--app=${url}`,'--window-size=797,930'],{detached:true,stdio:'ignore',windowsHide:false}):spawn('powershell.exe',['-NoProfile','-Command',`Start-Process '${url}'`],{detached:true,stdio:'ignore',windowsHide:true});child.unref();
  }else console.log(`Open ${url}`);
 }
 function shutdown(){if(closing)return;closing=true;updates.stop();clearInterval(timer);clearInterval(historyTimer);network.stop();quota.stop();try{db?.close();}catch{}for(const socket of clients)socket.destroy();server.close(()=>process.exit(0));setTimeout(()=>process.exit(0),800).unref();}
